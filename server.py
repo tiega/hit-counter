@@ -119,6 +119,6 @@ def add_header(r):
 
 if __name__ == '__main__':
     ip = '127.0.0.1'
-    port = 8080
+    port = 8090
     print("Site starting on http://" + ip + ":" + str(port))
     app.run(host=ip, port=port)

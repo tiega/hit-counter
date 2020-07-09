@@ -4,6 +4,8 @@ from collections import defaultdict
 from datetime import datetime
 import re
 
+UNKNOWN_AGENT = config.UNKNOWN_AGENT
+
 # urls table
 URL_SCHEMA = """CREATE TABLE IF NOT EXISTS url (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,6 +81,22 @@ class DbAccess:
         if data is None:
             return 0
         return data[0]
+    
+    def getAgentCount(self, connection, url, agent):
+        cursor = connection.cursor()
+        if agent is None:
+            agent = UNKNOWN_AGENT
+        cursor.execute("""
+        SELECT user_agent
+        FROM user_agents
+        INNER JOIN url
+            on url.id = user_agents.url_id
+        WHERE user_agent=? AND url=?
+        """, (agent, url))
+        data = cursor.fetchone()
+        if data is None:
+            return 0
+        return data[0]
 
     def addUrlCount(self, connection, url):
         """ 
@@ -117,14 +135,15 @@ class DbAccess:
     
     def addAgentCount(self, connection, url, agent):
         if agent is None:
-            return
+            agent = UNKNOWN_AGENT
         cursor = connection.cursor()
         cursor.execute("SELECT id FROM url WHERE url=?", (url,))
         url_id = cursor.fetchone()[0]
 
         # Make sure the agent for this url exists
-        count = self.getDailyCount(connection, url)
+        count = self.getAgentCount(connection, url, agent)
         if count == 0:
+            print("Creating for ", url)
             cursor.execute("""
             INSERT INTO user_agents(url_id, user_agent, count)
             VALUES(?, ?, ?)

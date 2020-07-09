@@ -1,7 +1,8 @@
 # Location of database
 DATABASE_FILENAME = 'data.db'
 # Amount of time before another view by the same user will count
-COOKIE_TIMEOUT = 60 * 5
+# COOKIE_TIMEOUT = 60 * 5
+COOKIE_TIMEOUT = 5
 # Template of SVG with {count} to be provided
 SVG_TEMPLATE = """<?xml version="1.0"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="20">
@@ -23,3 +24,5 @@ CANNOT_FIND_URL_MESSAGE = "Count not find a requested url"
 ENABLE_SSL = False
 # Regular expressions to ignore when getting top sites
 TOP_SITES_IGNORE_DOMAIN_RE_MATCH = [r'192\.168\.\d{1,3}\.\d{1,3}', r'127\.0\.\d{1,3}\.\d{1,3}', r'^$']
+# Unknown user agent db placeholder
+UNKNOWN_AGENT = "unknown"
