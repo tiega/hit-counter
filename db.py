@@ -1,8 +1,35 @@
 import sqlite3 as lite
 import config
 from collections import defaultdict
+from datetime import datetime
 import re
 
+# urls table
+URL_SCHEMA = """CREATE TABLE IF NOT EXISTS url (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    count INTEGER NOT NULL
+);"""
+
+# daily_hits table
+HITS_SCHEMA = """CREATE TABLE IF NOT EXISTS daily_hits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    count INTEGER NOT NULL,
+    FOREIGN KEY (url_id)
+        REFERENCES url (id)
+);"""
+
+# user_agents table
+UA_SCHEMA = """CREATE TABLE IF NOT EXISTS user_agents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url_id INTEGER NOT NULL,
+    user_agent TEXT NOT NULL,
+    count INTEGER NOT NULL,
+    FOREIGN KEY (url_id)
+        REFERENCES url (id)
+);"""
 
 class DbAccess:
     """ This provides access to the database to keep track of urls and views """
@@ -11,8 +38,12 @@ class DbAccess:
         self.filename = filename
         connection = lite.connect(filename)
         connection.execute('pragma journal_mode=wal')
+        connection.execute('PRAGMA foreign_keys=ON')
         cursor = connection.cursor()
-        cursor.execute('CREATE TABLE IF NOT EXISTS url (id INTEGER PRIMARY KEY, url VARCHAR(256), count INTEGER);')
+        cursor.execute(URL_SCHEMA)
+        cursor.execute(HITS_SCHEMA)
+        cursor.execute(UA_SCHEMA)
+        
 
     def get_connection(self):
         """ Get the cursor to use in the current thread and remove rows that have expired in views"""
@@ -26,11 +57,34 @@ class DbAccess:
         data = cursor.fetchone()
         if data is None:
             return 0
+        return data[0]
+    
+    def getDailyCount(self, connection, url, date=None):
+        cursor = connection.cursor()
+        if date is None:
+            date = datetime.today().strftime("%y-%m-%d")
+        elif isinstance(date, datetime):
+            date = date.strftime("%y-%m-%d")
         else:
-            return data[0]
+            raise ValueError("date not recognised (must be datetime.datetime format): ", date)
 
-    def addView(self, connection, url):
-        """ Create url entry if needed and increase url count and add cookie value to views if value is not stored """
+        cursor.execute("""
+        SELECT daily_hits.count 
+        FROM daily_hits 
+        INNER JOIN url
+            on url.id = daily_hits.url_id
+        WHERE date=date() AND url=?
+        """, (url,))
+        data = cursor.fetchone()
+        if data is None:
+            return 0
+        return data[0]
+
+    def addUrlCount(self, connection, url):
+        """ 
+        Create url entry if needed
+        Increase url count
+        """
         cursor = connection.cursor()
         # Make sure the url entry exists
         count = self.getCount(connection, url)
@@ -38,7 +92,53 @@ class DbAccess:
             cursor.execute('INSERT INTO url(url, count) VALUES(?, ?)', (url, 0))
         # Add 1 to the url count
         cursor.execute('UPDATE url SET count = count + 1 WHERE url=?', (url, ))
+
         connection.commit()
+    
+    def addDailyCount(self, connection, url):
+        cursor = connection.cursor()
+        cursor.execute("SELECT id FROM url WHERE url=?", (url,))
+        url_id = cursor.fetchone()[0]
+
+        # Make sure today's entry exists
+        count = self.getDailyCount(connection, url)
+        if count == 0:
+            cursor.execute("""
+            INSERT INTO daily_hits(url_id, date, count) VALUES(?, date(), ?)
+            """, (url_id, 0))
+        # Add 1 to today
+        cursor.execute("""
+        UPDATE daily_hits
+        SET count = count + 1
+        WHERE date=date() AND url_id=?
+        """, (url_id,))
+    
+        connection.commit()
+    
+    def addAgentCount(self, connection, url, agent):
+        if agent is None:
+            return
+        cursor = connection.cursor()
+        cursor.execute("SELECT id FROM url WHERE url=?", (url,))
+        url_id = cursor.fetchone()[0]
+
+        # Make sure the agent for this url exists
+        count = self.getDailyCount(connection, url)
+        if count == 0:
+            cursor.execute("""
+            INSERT INTO user_agents(url_id, user_agent, count)
+            VALUES(?, ?, ?)
+            """, (url_id, agent, 0))
+
+        # Add 1 to the user agent
+        cursor.execute("""
+        UPDATE user_agents
+        SET count = count + 1
+        WHERE url_id=? AND user_agent=?
+        """, (url_id, agent))
+    
+        connection.commit()
+
 
     def getTopSites(self, connection, amount=10):
         """ Get the top domains using this tool by hits. Ignore specified domains """

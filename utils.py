@@ -3,6 +3,7 @@ import random
 import string
 import datetime
 from urllib.parse import urlparse
+from werkzeug.useragents import UserAgent
 import time
 
 
@@ -53,3 +54,15 @@ def calculateSVGSizes(count):
         sizes['textX'] += 3 * (len(text) - 5)
 
     return sizes
+
+def parseUAString(ua_str):
+    """ Return the platform, browser and version of the User-agent string """
+    try:
+        ua = UserAgent(ua_str)
+        return {
+            "platform": ua.platform, 
+            "browser": ua.browser, 
+            "version": ua.version, 
+        }
+    except ValueError:
+        return {}

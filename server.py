@@ -34,6 +34,16 @@ def homeRoute():
     connection = db_connection.get_connection()
     return render_template('index.html', top_sites=db_connection.getTopSites(connection, 10))
 
+
+def updateFromRequest(connection, url, headers):
+    """
+    Update the db from the current request (total count, daily count, user agent count)
+    """
+    db_connection.addUrlCount(connection, url)
+    db_connection.addDailyCount(connection, url)
+    agent = utils.parseUAString(headers.get("User-agent", {}))
+    db_connection.addAgentCount(connection, url, agent.get("browser"))
+
 @app.route("/count")
 def countRoute():
     """ Return the count for a url and add 1 to it """
@@ -46,14 +56,18 @@ def countRoute():
     valid_cookie = utils.checkValidCookie(request, url)
     connection = db_connection.get_connection()
     if not valid_cookie:
-        db_connection.addView(connection, url)
-    count = db_connection.getCount(connection, url)
+        updateFromRequest(connection, url, request.headers)
 
+    count = db_connection.getCount(connection, url)
     return makeTextRequest(count, url, not valid_cookie)
 
 @app.route("/count/tag.svg")
 def countTagRoute():
-    """ Return svg of count and add 1 to url """
+    """ Return svg of count
+    Update total count
+    Update daily count
+    Update user agent count
+    """
     url = utils.getURL(request)
     if url is None:
         return config.CANNOT_FIND_URL_MESSAGE, 404
@@ -61,7 +75,8 @@ def countTagRoute():
     valid_cookie = utils.checkValidCookie(request, url)
     connection = db_connection.get_connection()
     if not valid_cookie:
-        db_connection.addView(connection, url)
+        updateFromRequest(connection, url, request.headers)
+
     count = db_connection.getCount(connection, url)
 
     return makeSVGRequest(count, url, not valid_cookie)
