@@ -1,11 +1,8 @@
 # Hit Counter
+
+![Hits](http://hits.tigernie.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2Ftiega%2Fhit-counter)
+
 Easily count hits on a website by requesting a svg that displays a hit count.
-
-<div style="text-align: center">
-    <img src="https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2Fbrentvollebregt%2Fhit-counter" alt="Hits">
-</div>
-
-Live demo hosted at: [hitcounter.pythonanywhere.com](https://hitcounter.pythonanywhere.com/)
 
 ## What is This?
 This is a server that allows a client to request for a svg file that displays views for a url. This url can either be passed as a query parameter or the referrer (or referer) value in the header will be used.
